@@ -37,6 +37,24 @@ check_command() {
     fi
 }
 
+# 检查 Docker Compose 命令，兼容 Compose V2: `docker compose`
+check_docker_compose() {
+    if docker compose version &> /dev/null; then
+        COMPOSE_CMD=(docker compose)
+        print_info "检测到 Docker Compose V2: docker compose"
+        return
+    fi
+
+    if command -v docker-compose &> /dev/null; then
+        COMPOSE_CMD=(docker-compose)
+        print_info "检测到 Docker Compose V1: docker-compose"
+        return
+    fi
+
+    print_error "Docker Compose 未安装，请安装 Docker Compose V2 或 docker-compose"
+    exit 1
+}
+
 # 显示欢迎信息
 echo "======================================"
 echo "   Shop Bot 快速部署脚本"
@@ -46,7 +64,7 @@ echo ""
 # 检查依赖
 print_info "检查系统依赖..."
 check_command docker
-check_command docker-compose
+check_docker_compose
 print_success "依赖检查通过"
 
 # 检查.env文件
@@ -165,11 +183,11 @@ mkdir -p logs data
 # 构建和启动服务
 print_info "开始构建和启动服务..."
 if [ "$COMPOSE_FILE" = "docker-compose.yml" ]; then
-    docker-compose build --no-cache
-    docker-compose up -d
+    "${COMPOSE_CMD[@]}" build --no-cache
+    "${COMPOSE_CMD[@]}" up -d
 else
-    docker-compose -f $COMPOSE_FILE build --no-cache
-    docker-compose -f $COMPOSE_FILE up -d
+    "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" build --no-cache
+    "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" up -d
 fi
 
 # 等待服务启动
@@ -178,17 +196,17 @@ sleep 10
 
 # 检查服务状态
 if [ "$COMPOSE_FILE" = "docker-compose.yml" ]; then
-    docker-compose ps
+    "${COMPOSE_CMD[@]}" ps
 else
-    docker-compose -f $COMPOSE_FILE ps
+    "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" ps
 fi
 
 # 显示日志
 print_info "显示最近的日志..."
 if [ "$COMPOSE_FILE" = "docker-compose.yml" ]; then
-    docker-compose logs --tail=20 app
+    "${COMPOSE_CMD[@]}" logs --tail=20 app
 else
-    docker-compose -f $COMPOSE_FILE logs --tail=20 app
+    "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" logs --tail=20 app
 fi
 
 # 完成信息
@@ -205,9 +223,9 @@ print_info "机器人地址："
 echo "  在Telegram中搜索您的机器人并发送 /start"
 echo ""
 print_info "常用命令："
-echo "  查看日志: docker-compose logs -f app"
-echo "  重启服务: docker-compose restart"
-echo "  停止服务: docker-compose down"
+echo "  查看日志: ${COMPOSE_CMD[*]} logs -f app"
+echo "  重启服务: ${COMPOSE_CMD[*]} restart"
+echo "  停止服务: ${COMPOSE_CMD[*]} down"
 echo ""
 print_warning "请保存好您的配置信息！"
 echo "======================================"
